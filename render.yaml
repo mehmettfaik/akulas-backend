@@ -35,7 +35,7 @@ services:
 
       # CORS Origins (virgülle ayrılmış)
       - key: CORS_ORIGIN
-        value: https://your-frontend-domain.com,https://www.your-frontend-domain.com
+        value: https://akulas-yonetim-paneli.vercel.app
 
       # Rate Limiting
       - key: RATE_LIMIT_WINDOW_MS
