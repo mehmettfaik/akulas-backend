@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: akulas-backend
+    env: node
+    region: frankfurt # En yakın bölge (Türkiye için)
+    plan: free # Veya starter/standard
+    buildCommand: npm install
+    startCommand: node src/server.js
+    healthCheckPath: /api/v1/health
+
+    # Environment variables
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: 3003
+
+      - key: API_PREFIX
+        value: /api
+
+      - key: API_VERSION
+        value: v1
+
+      # Firebase credentials - Render dashboard'dan secret olarak ekle
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false # Bu secret Render dashboard'dan manuel eklenmeli
+
+      - key: FIREBASE_PROJECT_ID
+        sync: false # Firebase project ID
+
+      # JWT Secret
+      - key: JWT_SECRET
+        generateValue: true # Render otomatik generate edecek
+
+      # CORS Origins (virgülle ayrılmış)
+      - key: CORS_ORIGIN
+        value: https://your-frontend-domain.com,https://www.your-frontend-domain.com
+
+      # Rate Limiting
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000 # 15 dakika
+
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 100
+
+    # Auto deploy from main branch
+    autoDeploy: true
