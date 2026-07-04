@@ -8,6 +8,8 @@ const hakedisRoutes = require('./hakedis.routes');
 const deskRoutes = require('./desk.routes');
 const bayiDolumRoutes = require('./bayi-dolum.routes');
 const leaveRoutes = require('./leave.routes');
+const kioskRoutes = require('./kiosk.routes');
+const kioskDolumRoutes = require('./kiosk-dolum.routes');
 
 const router = express.Router();
 
@@ -34,5 +36,7 @@ router.use('/hakedis', hakedisRoutes);
 router.use('/desk', deskRoutes);
 router.use('/bayi-dolum', bayiDolumRoutes);
 router.use('/leave', leaveRoutes);
+router.use('/kiosks', kioskRoutes);
+router.use('/kiosk-dolum', kioskDolumRoutes);
 
 module.exports = router;

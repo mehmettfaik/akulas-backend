@@ -357,8 +357,8 @@ const reviewRecord = async (req, res, next) => {
       throw new ForbiddenError('Bu işlem için yetkiniz yok');
     }
 
-    if (!['approve', 'reject', 'revise'].includes(action)) {
-      throw new BadRequestError('Geçersiz aksiyon. "approve", "reject" veya "revise" olmalıdır');
+    if (!['approve', 'reject', 'revise', 'deliver_to_bank'].includes(action)) {
+      throw new BadRequestError('Geçersiz aksiyon. "approve", "reject", "revise" veya "deliver_to_bank" olmalıdır');
     }
 
     const docRef = db.collection(DESK_COLLECTION).doc(id);
@@ -378,7 +378,10 @@ const reviewRecord = async (req, res, next) => {
         newStatus = 'rejected';
         break;
       case 'revise':
-        newStatus = 'pending_revision'; // Revize bekleyen durum
+        newStatus = 'pending_revision';
+        break;
+      case 'deliver_to_bank':
+        newStatus = 'teslim_edildi';
         break;
     }
 
@@ -404,7 +407,8 @@ const reviewRecord = async (req, res, next) => {
     const messages = {
       approve: 'onaylandı',
       reject: 'reddedildi',
-      revise: 'revize edilmek üzere geri gönderildi'
+      revise: 'revize edilmek üzere geri gönderildi',
+      deliver_to_bank: 'bankaya teslim edildi'
     };
 
     successResponse(

@@ -5,7 +5,7 @@ dotenv.config();
 const config = {
   port: parseInt(process.env.PORT || '3003', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
-  corsOrigin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+  corsOrigin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
   firebase: {
     projectId: process.env.FIREBASE_PROJECT_ID || '',
     serviceAccountPath: process.env.FIREBASE_SERVICE_ACCOUNT_KEY_PATH || ''

@@ -1,6 +1,7 @@
 const { db } = require('../config/firebase');
 const { successResponse } = require('../utils/response');
 const { NotFoundError, BadRequestError } = require('../utils/errors');
+const jwt = require('jsonwebtoken');
 
 const HAKEDIS_COLLECTION = 'hakedis';
 
@@ -387,11 +388,173 @@ const getWeeklyHakedisSummary = async (req, res, next) => {
   }
 };
 
+/**
+ * Get hakediş by date and type
+ */
+const getHakedisByDate = async (req, res, next) => {
+  try {
+    const { date, type } = req.query;
+    
+    if (!date) {
+      throw new BadRequestError('Tarih parametresi zorunludur');
+    }
+
+    let query = db.collection(HAKEDIS_COLLECTION).where('date', '==', date);
+    
+    if (type) {
+      query = query.where('type', '==', type);
+    }
+
+    const snapshot = await query.limit(1).get();
+
+    if (snapshot.empty) {
+      return successResponse(res, null, 'Bu tarihte kayıt bulunamadı');
+    }
+
+    const doc = snapshot.docs[0];
+    const hakedis = {
+      id: doc.id,
+      ...doc.data()
+    };
+
+    successResponse(res, hakedis, 'Kayıt başarıyla getirildi');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Public: Verify vehicle by plate and taxOrTcNo
+ */
+const verifyVehicle = async (req, res, next) => {
+  try {
+    const { plate, taxOrTcNo } = req.body;
+    if (!plate || !taxOrTcNo) {
+      throw new BadRequestError('Plaka ve Vergi/T.C. Kimlik No gereklidir');
+    }
+
+    const formattedPlate = plate.replace(/\s+/g, '').toUpperCase();
+    const formattedTc = taxOrTcNo.replace(/\s+/g, '');
+
+    // Search for the vehicle
+    const snapshot = await db.collection('vehicles')
+      .where('plateNumber', '==', formattedPlate)
+      .where('taxId', '==', formattedTc)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      throw new BadRequestError('Girilen bilgilere ait araç bulunamadı');
+    }
+
+    const vehicleData = snapshot.docs[0].data();
+
+    // Create JWT token valid for 15 minutes
+    const token = jwt.sign(
+      { plate: formattedPlate, taxOrTcNo: formattedTc },
+      process.env.JWT_SECRET || 'secret-key-for-development',
+      { expiresIn: '15m' }
+    );
+
+    successResponse(res, { token, vehicle: { plate: vehicleData.plateNumber, owner: vehicleData.driverName } }, 'Doğrulama başarılı');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Public: Get hakedis records for the verified vehicle
+ */
+const getPublicHakedis = async (req, res, next) => {
+  try {
+    const { plate } = req.user; // populated from publicAuth middleware
+    const { startDate, endDate } = req.query;
+    
+    // get the records where this vehicle has hakedis
+    // since hakedis records store vehicles in a map (vehicles[vehicleNumber]), we need to know the vehicleNumber
+    // first get the vehicle to find its vehicleNumber
+    const vehicleSnap = await db.collection('vehicles').where('plateNumber', '==', plate).limit(1).get();
+    if (vehicleSnap.empty) {
+      throw new NotFoundError('Araç bulunamadı');
+    }
+    const vehicleNumber = vehicleSnap.docs[0].data().vehicleNumber;
+
+    // we will fetch from reports collection for this vehicle
+    let query = db.collection('reports')
+      .where('vehicleNumber', '==', Number(vehicleNumber));
+
+    const snapshot = await query.get();
+
+    // Group reports by date
+    const reportsByWeek = {};
+    
+    snapshot.forEach(doc => {
+      const reportData = doc.data();
+      const reportDate = reportData.date;
+      
+      const isInRange = (!startDate || reportDate >= startDate) && 
+                        (!endDate || reportDate <= endDate);
+      
+      if (isInRange) {
+        if (!reportsByWeek[reportDate]) {
+          reportsByWeek[reportDate] = {
+            date: reportDate,
+            vehicleNumber: reportData.vehicleNumber,
+            plateNumber: reportData.plateNumber,
+            routeName: reportData.routeName,
+            routeAmount: 0,
+            vehicleAmount: 0,
+            totalAmount: 0,
+            types: []
+          };
+        }
+        
+        reportsByWeek[reportDate].routeAmount += (reportData.routeAmount || 0);
+        reportsByWeek[reportDate].vehicleAmount += (reportData.vehicleAmount || 0);
+        reportsByWeek[reportDate].totalAmount += (reportData.totalAmount || reportData.amount || 0);
+        
+        if (!reportsByWeek[reportDate].types.includes(reportData.type)) {
+          reportsByWeek[reportDate].types.push(reportData.type);
+        }
+      }
+    });
+
+    const vehicleReports = Object.values(reportsByWeek).sort((a, b) => b.date.localeCompare(a.date));
+
+    const totalAmount = vehicleReports.reduce((sum, report) => sum + report.totalAmount, 0);
+    const totalRouteAmount = vehicleReports.reduce((sum, report) => sum + report.routeAmount, 0);
+    const totalVehicleAmount = vehicleReports.reduce((sum, report) => sum + report.vehicleAmount, 0);
+
+    successResponse(res, {
+      vehicle: {
+        vehicleNumber: vehicleSnap.docs[0].data().vehicleNumber,
+        plateNumber: vehicleSnap.docs[0].data().plateNumber,
+        routeName: vehicleSnap.docs[0].data().routeName || vehicleSnap.docs[0].data().lineName,
+        driverName: vehicleSnap.docs[0].data().driverName
+      },
+      reports: vehicleReports,
+      summary: {
+        totalAmount,
+        totalRouteAmount,
+        totalVehicleAmount,
+        reportCount: vehicleReports.length,
+        startDate,
+        endDate
+      }
+    }, 'Hakediş kayıtları başarıyla getirildi');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createHakedis,
   getAllHakedis,
   getHakedisById,
   updateHakedis,
   deleteHakedis,
-  getWeeklyHakedisSummary
+  getWeeklyHakedisSummary,
+  getHakedisByDate,
+  verifyVehicle,
+  getPublicHakedis
 };

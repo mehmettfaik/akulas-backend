@@ -5,14 +5,31 @@ const {
   getHakedisById,
   updateHakedis,
   deleteHakedis,
-  getWeeklyHakedisSummary
+  getWeeklyHakedisSummary,
+  getHakedisByDate
 } = require('../controllers/hakedis.controller');
 const { authenticate, authorize } = require('../middlewares/auth.middleware');
 const { validate } = require('../middlewares/validation.middleware');
 const { body, param, query } = require('express-validator');
 const { UserRole } = require('../constants/enums');
+const rateLimit = require('express-rate-limit');
+const { publicAuth } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
+
+// Rate limiter for /verify endpoint
+const verifyLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 15, // limit each IP to 15 requests per windowMs
+  message: {
+    success: false,
+    message: 'Çok fazla doğrulama isteği gönderdiniz. Lütfen daha sonra tekrar deneyin.'
+  }
+});
+
+// Public endpoints (no admin auth)
+router.post('/verify', verifyLimiter, require('../controllers/hakedis.controller').verifyVehicle);
+router.get('/public', publicAuth, require('../controllers/hakedis.controller').getPublicHakedis);
 
 // All routes require JWT authentication
 router.use(authenticate);
@@ -105,6 +122,17 @@ router.get('/weekly/summary', validate(weeklyHakedisValidation), getWeeklyHakedi
 // Get all hakediş (all authenticated users)
 router.get('/', getAllHakedis);
 
+// Get hakediş by date
+router.get(
+  '/by-date',
+  authorize(UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.RESPONSIBLE),
+  [
+    query('date').notEmpty().withMessage('Tarih parametresi zorunludur')
+  ],
+  validate([]),
+  getHakedisByDate
+);
+
 // Get hakediş by ID (all authenticated users)
 router.get('/:id', validate(hakedisIdValidation), getHakedisById);
 
@@ -117,6 +145,8 @@ router.post(
 );
 
 // Update hakediş (admin, supervisor)
+
+
 router.put(
   '/:id',
   authorize(UserRole.ADMIN, UserRole.SUPERVISOR),

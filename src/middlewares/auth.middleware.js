@@ -77,7 +77,34 @@ const authorize = (...allowedRoles) => {
   };
 };
 
+/**
+ * Public JWT Token Authentication Middleware for Hakedis Sorgulama
+ */
+const publicAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedError('No token provided');
+    }
+    const token = authHeader.split('Bearer ')[1];
+    if (!token) {
+      throw new UnauthorizedError('Token is missing');
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret-key-for-development');
+    req.user = {
+      plate: decoded.plate,
+      taxOrTcNo: decoded.taxOrTcNo,
+      isPublic: true
+    };
+    next();
+  } catch (error) {
+    next(new UnauthorizedError('Invalid or expired token. Lütfen tekrar doğrulama yapınız.'));
+  }
+};
+
 module.exports = {
   authenticate,
-  authorize
+  authorize,
+  publicAuth
 };
