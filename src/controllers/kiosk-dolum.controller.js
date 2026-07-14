@@ -72,7 +72,7 @@ const submitKioskDolum = async (req, res, next) => {
       banknotes,
       bankSentCash: bankSentCash || { dolum: 0, totalSent: 0 },
       totals,
-      status: 'pending', // Initial status
+      status: 'submitted', // Initial status
       submittedBy: userId,
       submittedByEmail: userEmail,
       submittedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -232,7 +232,7 @@ const updateRecord = async (req, res, next) => {
       banknotes,
       bankSentCash: bankSentCash || { dolum: 0, totalSent: 0 },
       totals,
-      status: 'pending',
+      status: 'submitted',
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
     
