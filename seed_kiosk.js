@@ -7,7 +7,7 @@ async function seed() {
     const snapshot = await db.collection('kiosks').limit(1).get();
     if (snapshot.empty) {
       await db.collection('kiosks').add({
-        name: 'Makas Kiosk',
+        name: 'Kiosk 1',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         isActive: true
       });

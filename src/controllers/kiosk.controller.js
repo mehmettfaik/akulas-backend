@@ -13,7 +13,7 @@ const getKiosks = async (req, res, next) => {
     // Auto-seed default kiosk if empty
     if (kiosks.length === 0) {
       const kioskData = {
-        name: 'Makas Kiosk',
+        name: 'Kiosk 1',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         isActive: true
       };
